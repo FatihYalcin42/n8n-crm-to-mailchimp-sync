@@ -1,0 +1,620 @@
+{
+  "name": "Close → Mailchimp Newsletter (wöchentlich)",
+  "nodes": [
+    {
+      "id": "4110333b-d28e-52ec-807a-16ac91f7c9f0",
+      "name": "Notiz Überblick",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        -400
+      ],
+      "parameters": {
+        "content": "## Close → Mailchimp Newsletter (wöchentlich)\nErsetzt UserA Wochenaufgabe „Wöchentlicher Export der Close.com Einträge für den Newsletter“ (Projekt Newsletter Erstellung).\n**Montag 7 Uhr:** alle Leads aus Close lesen (nur lesen) → Hauptkontakt mit E-Mail je Lead → in die Mailchimp-Zielgruppe „Newsletter“ eintragen (neue als abonniert, vorhandene aktualisiert, Abgemeldete bleiben abgemeldet) → neue Prüfaufgabe mit dem Ergebnis an UserA (Projekt Newsletter Erstellung), UserA hakt sie ab.\n**Manuell starten = Trockenlauf:** liest und zählt nur. Schalter `live` und alle Werte im Knoten **Einstellungen**. Fehler → „Fehlermeldung an Asana (Admin)“.\nStand und Entscheidungen: `~/Desktop/Automationen/Close-Newsletter/STAND.md`",
+        "width": 1472,
+        "height": 220,
+        "color": 7
+      }
+    },
+    {
+      "id": "6abccc33-1b65-5d02-b437-9c86fdbfac3c",
+      "name": "Notiz Lesen",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        192,
+        -144
+      ],
+      "parameters": {
+        "content": "### 1 · Lesen und aufbereiten\nEinstellungen, Zielgruppe prüfen (nur lesen), Close-Leads seitenweise holen, UserA Regeln anwenden.",
+        "width": 1120,
+        "height": 520,
+        "color": 5
+      }
+    },
+    {
+      "id": "39f35c3d-6e0b-5f40-aa03-b8280717c4d0",
+      "name": "Notiz Mailchimp",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1328,
+        -144
+      ],
+      "parameters": {
+        "content": "### 2 · Mailchimp\nNur im Montagslauf mit `live = true`. Je Kontakt ein PUT mit `status_if_new: subscribed`, höchstens 5 gleichzeitig wegen Mailchimps Grenze (Abgemeldete bleiben abgemeldet). Danach archivierte Kontakte wieder auf abonniert. Einzelne Fehlschläge sind normal.",
+        "width": 1336,
+        "height": 520,
+        "color": 4
+      }
+    },
+    {
+      "id": "06dfd6d2-2be2-567f-979b-952050c07774",
+      "name": "Notiz Asana",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2704,
+        -144
+      ],
+      "parameters": {
+        "content": "### 3 · Asana\nNeue Prüfaufgabe an UserA mit den Zahlen, fällig am selben Tag (Konto Asana (Admin)).",
+        "width": 480,
+        "height": 520,
+        "color": 6
+      }
+    },
+    {
+      "id": "0fb26e65-bd6e-55e0-8275-caca1522e39f",
+      "name": "Montag 7 Uhr",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -16,
+        16
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * 1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "62a44754-539d-52db-9fab-84497aa8189a",
+      "name": "Manuell starten (Trockenlauf)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -16,
+        240
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "a5876df6-a9e1-54be-986e-2f2ae2edb7c7",
+      "name": "Einstellungen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        128
+      ],
+      "parameters": {
+        "jsCode": "// ═══ EINSTELLUNGEN ═══ Alles, was man anpassen kann, steht hier.\n// live = false: auch der Montagslauf schreibt nichts (nur lesen und zählen). Freigabe Admin 13.11.2026 → true.\n// Ein manueller Start ist immer ein Trockenlauf (liest Close und die Mailchimp-Zielgruppe, schreibt nichts, hakt nichts ab).\nconst cfg = {\n  live: true,   // Admin 13.11.2026: jeden Montag laufen lassen\n  close: { url: 'https://api.close.com/api/v1/lead/', seite: 100 },\n  // Mailchimp: Rechenzentrum = Teil des API-Schlüssels nach dem Bindestrich (z. B. 'us21'), Zielgruppe = ID der Liste „Newsletter“.\n  mailchimp: { rechenzentrum: 'usXX', zielgruppe: 'YOUR_AUDIENCE_ID' },   // „AGENCY Newsletter“\n  // UserA Regeln (Asana-Kommentar 11.11.2026): ohne E-Mail weglassen, „kein Name“ bleibt, Name „Slack“ → leer.\n  regeln: { nameLeer: ['slack'] },\n  // Admin 13.11.2026: jeden Montag eine neue Prüfaufgabe mit dem Ergebnis an UserA (Projekt Newsletter Erstellung), UserA hakt sie ab.\n  asana: { anlegen: true, workspace: 'YOUR_ASANA_WORKSPACE_GID', projekt: 'YOUR_ASANA_NEWSLETTER_PROJECT_GID', zustaendig: 'YOUR_ASANA_USER_A_GID' },\n};\nif (!/^[a-z]{2}\\d{1,3}$/.test(cfg.mailchimp.rechenzentrum) || !cfg.mailchimp.zielgruppe) throw new Error('Einstellungen: Mailchimp-Rechenzentrum oder Zielgruppe fehlt');\nconst geplant = $('Montag 7 Uhr').isExecuted;\nreturn [{ json: { ...cfg, geplant, schreiben: geplant && cfg.live, start: $now.toISO() } }];\n"
+      }
+    },
+    {
+      "id": "503dd1e9-8422-589c-8f84-4b972b23d56c",
+      "name": "Zielgruppe prüfen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        464,
+        128
+      ],
+      "parameters": {
+        "options": {
+          "timeout": 30000
+        },
+        "url": "={{ 'https://' + $('Einstellungen').first().json.mailchimp.rechenzentrum + '.api.mailchimp.com/3.0/lists/' + $('Einstellungen').first().json.mailchimp.zielgruppe + '?fields=id,name,stats.member_count' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth"
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "CREDENTIAL_ID_04",
+          "name": "Mailchimp (API)"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "885c38ce-64b4-59e8-af0d-6be69b9495b0",
+      "name": "Close Leads holen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        688,
+        128
+      ],
+      "parameters": {
+        "options": {
+          "timeout": 30000,
+          "pagination": {
+            "pagination": {
+              "paginationMode": "updateAParameterInEachRequest",
+              "parameters": {
+                "parameters": [
+                  {
+                    "type": "qs",
+                    "name": "_skip",
+                    "value": "={{ $pageCount * $('Einstellungen').first().json.close.seite }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ $response.body.has_more !== true }}",
+              "limitPagesFetched": true,
+              "maxRequests": 500,
+              "requestInterval": 300
+            }
+          }
+        },
+        "url": "={{ $('Einstellungen').first().json.close.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_limit",
+              "value": "={{ $('Einstellungen').first().json.close.seite }}"
+            },
+            {
+              "name": "_fields",
+              "value": "id,display_name,contacts"
+            }
+          ]
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "CREDENTIAL_ID_11",
+          "name": "Close (API)"
+        }
+      }
+    },
+    {
+      "id": "c0f3cf4a-7cee-5fec-a133-5ed89c531229",
+      "name": "Kontakte aufbereiten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        128
+      ],
+      "parameters": {
+        "jsCode": "// ═══ KONTAKTE AUFBEREITEN ═══ wie UserA Excel: Hauptkontakt je Lead (erster Kontakt), dessen erste E-Mail, Vorname, Nachname.\n// Weggelassen: Lead ohne Kontakt, Kontakt ohne E-Mail, ungültige E-Mail, doppelte E-Mail. Name „Slack“ wird leer, „kein Name“ bleibt drin.\n// Vorname/Nachname: Close kennt nur einen Namen, geteilt an der letzten Leerstelle (Annahme, wie der Close-Export).\nconst cfg = $('Einstellungen').first().json;\nconst seiten = $input.all().map(i => i.json);\nif (!seiten.length || seiten.some(s => !Array.isArray(s.data))) throw new Error('Close: unerwartete Antwort (Feld data fehlt)');\nif (seiten[seiten.length - 1].has_more) throw new Error('Close: nicht alle Seiten gelesen (has_more), Abbruch');\nconst leads = seiten.flatMap(s => s.data);\nif (!leads.length) throw new Error('Close: 0 Leads gelesen, Abbruch');\nconst leer = new Set(cfg.regeln.nameLeer.map(s => s.toLowerCase()));\nconst gueltig = (e) => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$/.test(e);\nconst z = { leads: leads.length, ohneKontakt: 0, ohneMail: 0, ungueltig: 0, doppelt: 0, nameLeer: 0 };\nconst gesehen = new Set(), out = [];\nfor (const l of leads) {\n  const k = (l.contacts || [])[0];\n  if (!k) { z.ohneKontakt++; continue; }\n  const email = String(((k.emails || [])[0] || {}).email || '').trim().toLowerCase();\n  if (!email) { z.ohneMail++; continue; }\n  if (!gueltig(email)) { z.ungueltig++; continue; }\n  if (gesehen.has(email)) { z.doppelt++; continue; }\n  gesehen.add(email);\n  let name = String(k.name || '').trim().replace(/\\s+/g, ' ');\n  if (leer.has(name.toLowerCase())) { name = ''; z.nameLeer++; }\n  const i = name.lastIndexOf(' ');\n  out.push({ email, vorname: i > 0 ? name.slice(0, i) : name, nachname: i > 0 ? name.slice(i + 1) : '' });\n}\nif (!out.length) throw new Error('Close: kein Kontakt mit E-Mail-Adresse, Abbruch');\nz.uebernommen = out.length;\nreturn out.map((o, n) => ({ json: n === 0 ? { ...o, _zahlen: z } : o }));\n"
+      }
+    },
+    {
+      "id": "feb10be3-dba8-5316-b4b4-ac800b734ba0",
+      "name": "Schreiben?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        128
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "a5127943-b2b5-5faa-acbf-016495f0baee",
+              "leftValue": "={{ $('Einstellungen').first().json.schreiben }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "67712315-f57a-5d73-b01b-64a943c98682",
+      "name": "In Mailchimp eintragen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1392,
+        16
+      ],
+      "parameters": {
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 5,
+              "batchInterval": 500
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "method": "PUT",
+        "url": "={{ 'https://' + $('Einstellungen').first().json.mailchimp.rechenzentrum + '.api.mailchimp.com/3.0/lists/' + $('Einstellungen').first().json.mailchimp.zielgruppe + '/members/' + $json.email.hash('md5') }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({ email_address: $json.email, status_if_new: 'subscribed' }, ($json.vorname || $json.nachname) ? { merge_fields: Object.assign({}, $json.vorname ? { FNAME: $json.vorname } : {}, $json.nachname ? { LNAME: $json.nachname } : {}) } : {})) }}"
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "CREDENTIAL_ID_04",
+          "name": "Mailchimp (API)"
+        }
+      }
+    },
+    {
+      "id": "f16bd4f1-18a6-58b8-8313-ec54498ea851",
+      "name": "Archivierte heraussuchen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        16
+      ],
+      "parameters": {
+        "jsCode": "// ═══ ARCHIVIERTE HERAUSSUCHEN ═══ Kontakte, die Mailchimp nach dem Eintragen noch als „archived“ meldet.\n// Admin 13.11.2026: archivierte Kontakte wieder aktivieren (wie UserA Haken „Archivierung aufheben“).\nconst a = $input.all().map(i => i.json).filter(x => x.statusCode === 200 && x.body && x.body.status === 'archived')\n  .map(x => ({ json: { email: String(x.body.email_address).toLowerCase() } }));\nreturn a.length ? a : [{ json: { keine: true } }];\n"
+      }
+    },
+    {
+      "id": "31559327-f16f-54ef-8db1-17549f4b2243",
+      "name": "Archivierte dabei?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        16
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "ae6ba0a4-1453-5d46-a00a-a3d97e0f4520",
+              "leftValue": "={{ !$json.keine }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3b86f6ac-7628-5163-8844-36ed3ff6b6d4",
+      "name": "Archivierte reaktivieren",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2064,
+        16
+      ],
+      "parameters": {
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 5,
+              "batchInterval": 500
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "method": "PUT",
+        "url": "={{ 'https://' + $('Einstellungen').first().json.mailchimp.rechenzentrum + '.api.mailchimp.com/3.0/lists/' + $('Einstellungen').first().json.mailchimp.zielgruppe + '/members/' + $json.email.hash('md5') }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ email_address: $json.email, status: 'subscribed' }) }}"
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "CREDENTIAL_ID_04",
+          "name": "Mailchimp (API)"
+        }
+      }
+    },
+    {
+      "id": "a5bc2581-6b37-5050-91e7-d730fca1255c",
+      "name": "Ergebnis zusammenfassen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        128
+      ],
+      "parameters": {
+        "jsCode": "// ═══ ERGEBNIS ZUSAMMENFASSEN ═══ Zahlen für den Asana-Kommentar (keine E-Mail-Adressen).\n// Mailchimp-Antwort je Kontakt (aus „In Mailchimp eintragen“): 200 = eingetragen. „neu“ = Anmeldezeitpunkt (timestamp_opt) in diesem Lauf.\n// Archivierte: von „Archivierte reaktivieren“ wieder auf abonniert gesetzt (Admin 13.11.2026).\nconst cfg = $('Einstellungen').first().json;\nconst z = $('Kontakte aufbereiten').first().json._zahlen;\nconst liste = $('Zielgruppe prüfen').first().json;\nconst r = { modus: cfg.schreiben ? 'live' : 'trocken', ...z, zielgruppe: liste.name, mitglieder_vorher: (liste.stats || {}).member_count };\nif (cfg.schreiben) {\n  const start = new Date(cfg.start).getTime() - 60000;\n  const a = $('In Mailchimp eintragen').all().map(i => i.json);\n  const ok = a.filter(x => x.statusCode === 200 && x.body);\n  r.archiviert = ok.filter(x => x.body.status === 'archived').length;\n  r.neu = ok.filter(x => x.body.status !== 'archived' && x.body.timestamp_opt && new Date(x.body.timestamp_opt).getTime() >= start).length;\n  r.aktualisiert = ok.length - r.neu - r.archiviert;\n  r.abgemeldet = ok.filter(x => x.body.status === 'unsubscribed').length;\n  r.reaktiviert = $('Archivierte reaktivieren').isExecuted\n    ? $('Archivierte reaktivieren').all().filter(i => i.json.statusCode === 200 && i.json.body && i.json.body.status === 'subscribed').length : 0;\n  const f = a.filter(x => x.statusCode !== 200);\n  r.fehler = f.length;\n  r.fehler_arten = Object.entries(f.reduce((m, x) => { const t = (x.body && x.body.title) || ('HTTP ' + x.statusCode); m[t] = (m[t] || 0) + 1; return m; }, {})).map(([t, n]) => t + ': ' + n);\n  if (!ok.length) throw new Error('Mailchimp: kein Kontakt eingetragen (' + r.fehler_arten.join(', ') + ')');\n}\nconst zeit = $now.setZone('Europe/Berlin').toFormat('dd.MM.yyyy HH:mm');\nconst text = [\n  (cfg.schreiben ? 'Automatischer Abgleich Close → Mailchimp (' : 'Trockenlauf Close → Mailchimp, nichts geschrieben (') + zeit + '):',\n  '• Close: ' + z.leads + ' Leads gelesen, ' + z.uebernommen + ' Kontakte übernommen',\n  '• Weggelassen: ' + z.ohneMail + ' ohne E-Mail, ' + z.ohneKontakt + ' ohne Kontakt, ' + z.ungueltig + ' mit ungültiger E-Mail, ' + z.doppelt + ' doppelt'\n    + (z.nameLeer ? '; bei ' + z.nameLeer + ' „Slack“ als Name leer gelassen' : ''),\n  cfg.schreiben\n    ? '• Mailchimp „' + r.zielgruppe + '“: ' + r.neu + ' neu abonniert, ' + r.aktualisiert + ' aktualisiert'\n      + (r.abgemeldet ? ', davon ' + r.abgemeldet + ' abgemeldet (bleiben abgemeldet)' : '')\n      + (r.archiviert ? ', ' + r.reaktiviert + ' von ' + r.archiviert + ' archivierten wieder aktiviert' : '')\n      + (r.fehler ? ', ' + r.fehler + ' nicht übernommen (' + r.fehler_arten.join(', ') + ', normal laut UserA)' : '')\n    : '• Mailchimp „' + r.zielgruppe + '“: ' + r.mitglieder_vorher + ' Kontakte, nichts geändert',\n].join('\\n');\nconst kw = $now.setZone('Europe/Berlin').toFormat('kkkk-WW').replace(/^(\\d+)-(\\d+)$/, 'KW $2/$1');\nconst aufgabe_name = 'Newsletter-Abgleich Close → Mailchimp ' + kw + ': prüfen und abhaken';\nconst aufgabe_notiz = text + '\\n\\nDiese Aufgabe hat der Workflow „Close → Mailchimp Newsletter (wöchentlich)“ in n8n angelegt. '\n  + 'Bitte die Zahlen kurz ansehen und abhaken. Fällt etwas auf (z. B. viel weniger Leads als sonst oder viele Fehler), bitte Admin Bescheid geben.';\nreturn [{ json: { ...r, text, aufgabe_name, aufgabe_notiz, faellig: $now.setZone('Europe/Berlin').toISODate() } }];\n"
+      }
+    },
+    {
+      "id": "4d04eca4-254f-5172-9954-e7753e5d74ef",
+      "name": "Live?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        128
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "b9a838f6-138f-542e-8b09-6abf813e26b0",
+              "leftValue": "={{ $('Einstellungen').first().json.schreiben && $('Einstellungen').first().json.asana.anlegen }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3a67d3c1-35b0-58cb-8ab0-163f1b905194",
+      "name": "Prüfaufgabe für UserA anlegen",
+      "type": "n8n-nodes-base.asana",
+      "typeVersion": 1,
+      "position": [
+        2768,
+        16
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "workspace": "={{ $('Einstellungen').first().json.asana.workspace }}",
+        "name": "={{ $json.aufgabe_name }}",
+        "otherProperties": {
+          "assignee": "={{ $('Einstellungen').first().json.asana.zustaendig }}",
+          "notes": "={{ $json.aufgabe_notiz }}",
+          "due_on": "={{ $json.faellig }}",
+          "projects": "={{ [$('Einstellungen').first().json.asana.projekt] }}"
+        }
+      },
+      "credentials": {
+        "asanaOAuth2Api": {
+          "id": "CREDENTIAL_ID_02",
+          "name": "Asana (Admin)"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "connections": {
+    "Montag 7 Uhr": {
+      "main": [
+        [
+          {
+            "node": "Einstellungen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manuell starten (Trockenlauf)": {
+      "main": [
+        [
+          {
+            "node": "Einstellungen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Einstellungen": {
+      "main": [
+        [
+          {
+            "node": "Zielgruppe prüfen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zielgruppe prüfen": {
+      "main": [
+        [
+          {
+            "node": "Close Leads holen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Close Leads holen": {
+      "main": [
+        [
+          {
+            "node": "Kontakte aufbereiten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kontakte aufbereiten": {
+      "main": [
+        [
+          {
+            "node": "Schreiben?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schreiben?": {
+      "main": [
+        [
+          {
+            "node": "In Mailchimp eintragen",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ergebnis zusammenfassen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "In Mailchimp eintragen": {
+      "main": [
+        [
+          {
+            "node": "Archivierte heraussuchen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Archivierte heraussuchen": {
+      "main": [
+        [
+          {
+            "node": "Archivierte dabei?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Archivierte dabei?": {
+      "main": [
+        [
+          {
+            "node": "Archivierte reaktivieren",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ergebnis zusammenfassen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Archivierte reaktivieren": {
+      "main": [
+        [
+          {
+            "node": "Ergebnis zusammenfassen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ergebnis zusammenfassen": {
+      "main": [
+        [
+          {
+            "node": "Live?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Live?": {
+      "main": [
+        [
+          {
+            "node": "Prüfaufgabe für UserA anlegen",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Berlin",
+    "errorWorkflow": "WORKFLOW_ID_01",
+    "saveManualExecutions": true
+  }
+}
